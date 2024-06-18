@@ -57,6 +57,9 @@ if os.getenv("AZURE_OPENAI_ENDPOINT") is not None:
 else:
     azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
 
+print("API Key:", api_key)
+print("Azure Endpoint:", azure_endpoint)
+
 client = AzureOpenAI(
     api_key = api_key,  
     api_version="2024-02-01",
