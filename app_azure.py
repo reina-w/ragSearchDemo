@@ -47,24 +47,61 @@ with open(file_path, "r") as file:
 text_lines = file_text.split("# ")
 
 # openai_client = OpenAI()
-if os.getenv("AZURE_OPENAI_API_KEY") is not None:
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+# if os.getenv("AZURE_OPENAI_API_KEY") is not None:
+#     api_key = os.getenv("AZURE_OPENAI_API_KEY")
+# else:
+#     api_key = st.secrets["AZURE_OPENAI_API_KEY"]
+
+# if os.getenv("AZURE_OPENAI_ENDPOINT") is not None:
+#     azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+# else:
+#     azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
+
+# print("API Key:", api_key)
+# print("Azure Endpoint:", azure_endpoint)
+
+# client = AzureOpenAI(
+#     api_key = api_key,  
+#     api_version="2024-02-01",
+#     azure_endpoint = azure_endpoint
+# )
+
+# Check if the script is running
+print("Script is running...")
+
+# Check and fetch the API key
+api_key = os.getenv("AZURE_OPENAI_API_KEY")
+print("Environment AZURE_OPENAI_API_KEY:", api_key)
+
+if api_key is None:
+    api_key = st.secrets.get("AZURE_OPENAI_API_KEY")
+    print("Streamlit Secret AZURE_OPENAI_API_KEY:", api_key)
+
+# Check and fetch the Azure endpoint
+azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+print("Environment AZURE_OPENAI_ENDPOINT:", azure_endpoint)
+
+if azure_endpoint is None:
+    azure_endpoint = st.secrets.get("AZURE_OPENAI_ENDPOINT")
+    print("Streamlit Secret AZURE_OPENAI_ENDPOINT:", azure_endpoint)
+
+# Verify if values are correctly fetched
+if api_key is None or azure_endpoint is None:
+    print("Error: Missing required API key or endpoint")
 else:
-    api_key = st.secrets["AZURE_OPENAI_API_KEY"]
+    print("API Key and Endpoint fetched successfully")
 
-if os.getenv("AZURE_OPENAI_ENDPOINT") is not None:
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-else:
-    azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
+# Initialize the AzureOpenAI client
+try:
+    client = AzureOpenAI(
+        api_key=api_key,
+        api_version="2024-02-01",
+        azure_endpoint=azure_endpoint
+    )
+    print("AzureOpenAI client initialized successfully")
+except Exception as e:
+    print("Error initializing AzureOpenAI client:", e)
 
-print("API Key:", api_key)
-print("Azure Endpoint:", azure_endpoint)
-
-client = AzureOpenAI(
-    api_key = api_key,  
-    api_version="2024-02-01",
-    azure_endpoint = azure_endpoint
-)
 
 deployment_name = os.getenv("AZURE_DEPLOYMENT")
 
