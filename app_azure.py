@@ -48,7 +48,7 @@ text_lines = file_text.split("# ")
 
 # openai_client = OpenAI()
 client = AzureOpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),  
+    api_key = os.getenv("AZURE_OPENAI_API_KEY"),  
     api_version="2024-02-01",
     azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     )
@@ -68,7 +68,7 @@ def emb_text(text):
         return embedding_cache[text]
     else:
         embedding = (
-            client.embeddings.create(input=text, model="text-embedding-3-small")
+            client.embeddings.create(input=text, model="zilliz-text-embedding-3-small")
             .data[0]
             .embedding
         )
@@ -172,13 +172,21 @@ with col1:
             """
 
             # Generate response using OpenAI's GPT-3.5-turbo model
+            # response = client.chat.completions.create(
+            #     model = "zilliz-gpt-35-turbo",
+            #     messages=[
+            #         {"role": "system", "content": SYSTEM_PROMPT},
+            #         {"role": "user", "content": USER_PROMPT},
+            #     ],
+            #     max_tokens=10
+            # )
+
             response = client.chat.completions.create(
-                model = deployment_name,
+                model="zilliz-gpt-35-turbo", 
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": USER_PROMPT},
-                ],
-                max_tokens=10
+                ]
             )
 
             answer = response.choices[0].message.content
