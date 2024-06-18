@@ -47,11 +47,21 @@ with open(file_path, "r") as file:
 text_lines = file_text.split("# ")
 
 # openai_client = OpenAI()
-client = AzureOpenAI(
-    api_key = os.getenv("AZURE_OPENAI_API_KEY"),  
-    api_version="2024-02-01",
+if os.getenv("AZURE_OPENAI_API_KEY") is not None:
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+else:
+    api_key = st.secrets["AZURE_OPENAI_API_KEY"]
+
+if os.getenv("AZURE_OPENAI_ENDPOINT") is not None:
     azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    )
+else:
+    azure_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
+
+client = AzureOpenAI(
+    api_key = api_key,  
+    api_version="2024-02-01",
+    azure_endpoint = azure_endpoint
+)
 
 deployment_name = os.getenv("AZURE_DEPLOYMENT")
 
