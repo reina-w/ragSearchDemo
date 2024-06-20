@@ -1,6 +1,5 @@
 import os
 import urllib.request
-import openai
 from openai import AzureOpenAI
 from pymilvus import MilvusClient
 from tqdm import tqdm
@@ -19,8 +18,30 @@ st.set_page_config(layout="wide")
 # Logo
 st.image("Milvus Logo_Official.png", width=200)
 
+st.markdown("""
+    <style>
+    .title {
+        text-align: center;
+        font-size: 50px;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+    .description {
+        text-align: center;
+        font-size: 18px;
+        color: gray;
+        margin-bottom: 40px;
+    }
+    </style>
+    <div class="title">RAG Demo</div>
+    <div class="description">
+        This chatbot is built with Milvus vector database, supported by OpenAI text embedding model.<br>
+        It supports conversation based on knowledge from the Milvus development guide document.
+    </div>
+    """, unsafe_allow_html=True)
+
 # Set Streamlit title
-st.title("Milvus and OpenAI Embedding Search")
+# st.title("RAG Demo")
 
 # Set SSL context
 ssl_context = ssl.create_default_context(cafile=certifi.where())
@@ -122,94 +143,73 @@ for i, line in enumerate(tqdm(text_lines, desc="Creating embeddings")):
 # Insert data into Milvus collection
 milvus_client.insert(collection_name=collection_name, data=data)
 
-col1, col2 = st.columns([1, 1])
+# col1, col2 = st.columns([1, 1])
 
 retrieved_lines_with_distances = []
 
-# Initialize chat history in session state (optional: to save chat history)
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
 # Add content to each column
-with col1:
-    with st.form("my_form"):
-        question = st.text_area("Enter your question:")
+# with col1:
+with st.form("my_form"):
+    question = st.text_area("Enter your question:")
 
-        # what is the hardware requirements specification if I want to build Milvus and run from source code?
-        submitted = st.form_submit_button("Submit")
+    # what is the hardware requirements specification if I want to build Milvus and run from source code?
+    submitted = st.form_submit_button("Submit")
 
-        if question and submitted:
-            # Search in Milvus collection
-            search_res = milvus_client.search(
-                collection_name=collection_name,
-                data=[emb_text(question)],  # Convert question to embedding vector
-                limit=3,  # Return top 3 results
-                search_params={"metric_type": "IP", "params": {}},  # Inner product distance
-                output_fields=["text"],  # Return the text field
-            )
+    if question and submitted:
+        # Search in Milvus collection
+        search_res = milvus_client.search(
+            collection_name=collection_name,
+            data=[emb_text(question)],  # Convert question to embedding vector
+            limit=3,  # Return top 3 results
+            search_params={"metric_type": "IP", "params": {}},  # Inner product distance
+            output_fields=["text"],  # Return the text field
+        )
 
-            # Retrieve lines and distances
-            retrieved_lines_with_distances = [
-                (res["entity"]["text"], res["distance"]) for res in search_res[0]
+        # Retrieve lines and distances
+        retrieved_lines_with_distances = [
+            (res["entity"]["text"], res["distance"]) for res in search_res[0]
+        ]
+
+        # Create context from retrieved lines
+        context = "\n".join(
+            [line_with_distance[0] for line_with_distance in retrieved_lines_with_distances]
+        )
+
+        # Define system and user prompts
+        SYSTEM_PROMPT = """
+        Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
+        """
+        USER_PROMPT = f"""
+        Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
+        <context>
+        {context}
+        </context>
+        <question>
+        {question}
+        </question>
+        """
+
+        response = client.chat.completions.create(
+            model="zilliz-gpt-35-turbo", 
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": USER_PROMPT},
             ]
+        )
 
-            # Create context from retrieved lines
-            context = "\n".join(
-                [line_with_distance[0] for line_with_distance in retrieved_lines_with_distances]
-            )
+        answer = response.choices[0].message.content
 
-            # Define system and user prompts
-            SYSTEM_PROMPT = """
-            Human: You are an AI assistant. You are able to find answers to the questions from the contextual passage snippets provided.
-            """
-            USER_PROMPT = f"""
-            Use the following pieces of information enclosed in <context> tags to provide an answer to the question enclosed in <question> tags.
-            <context>
-            {context}
-            </context>
-            <question>
-            {question}
-            </question>
-            """
 
-            # Generate response using OpenAI's GPT-3.5-turbo model
-            # response = client.chat.completions.create(
-            #     model = "zilliz-gpt-35-turbo",
-            #     messages=[
-            #         {"role": "system", "content": SYSTEM_PROMPT},
-            #         {"role": "user", "content": USER_PROMPT},
-            #     ],
-            #     max_tokens=10
-            # )
-
-            response = client.chat.completions.create(
-                model="zilliz-gpt-35-turbo", 
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": USER_PROMPT},
-                ]
-            )
-
-            answer = response.choices[0].message.content
-
-            # Update chat history (optional: to save chat history)
-            st.session_state.chat_history.append({"role": "user", "content": question})
-            st.session_state.chat_history.append({"role": "assistant", "content": answer})
-
-            # Display the question and response in a chatbot-style box
-            st.write("Chatbot Conversation:")
-            # st.chat_message("user").write(question)
-            # st.chat_message("assistant").write(answer)
-
-            for chat in st.session_state.chat_history: # (optional: to save chat history)
-                st.chat_message(chat["role"]).write(chat["content"])
-
+        # Display the question and response in a chatbot-style box
+        st.chat_message("user").write(question)
+        st.chat_message("assistant").write(answer)
         
-with col2:
-    # Display the retrieved lines in a more readable format
-    st.subheader("Retrieved Lines with Distances:")
-    for idx, (line, distance) in enumerate(retrieved_lines_with_distances, 1):
-        st.markdown("---")
-        st.markdown(f"**Result {idx}:**")
-        st.markdown(f"> {line}")
-        st.markdown(f"*Distance: {distance:.2f}*")
+# with col2:
+
+# Display the retrieved lines in a more readable format
+st.sidebar.subheader("Retrieved Lines with Distances:")
+for idx, (line, distance) in enumerate(retrieved_lines_with_distances, 1):
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(f"**Result {idx}:**")
+    st.sidebar.markdown(f"> {line}")
+    st.sidebar.markdown(f"*Distance: {distance:.2f}*")
